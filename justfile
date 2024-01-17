@@ -21,7 +21,7 @@ build: distclean
   grub-mkrescue -o bruh_os.iso isodir
 
 run: build
-  qemu-system-{{QEMU_ARCH}} bruh_os.iso
+  qemu-system-{{QEMU_ARCH}} -cdrom bruh_os.iso
 
 dump-header:
   rust-objdump -f target/{{TARGET}}/debug/bruh_os
