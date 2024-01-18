@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![allow(bad_asm_style)]
 
 use core::arch::global_asm;
 use core::panic::PanicInfo;

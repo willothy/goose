@@ -1,12 +1,9 @@
 /*
-; credit:
-; https: // wiki.osdev.org/Bare_Bones#Booting_the_Operating_System
-; and
-; https://github.com/sphaerophoria/stream-os/blob/3055554ebcefb1e2fc4776255fc75a24fef00a23/src/boot.s
+credit:
+https: // wiki.osdev.org/Bare_Bones#Booting_the_Operating_System
+and
+https://github.com/sphaerophoria/stream-os/blob/3055554ebcefb1e2fc4776255fc75a24fef00a23/src/boot.s
 */
-/* Rust's ASM block does not seem to default to at&t syntax. Force it with the
- * following */
-.att_syntax
 
 /*
 The multiboot standard does not define the value of the stack pointer register
@@ -23,7 +20,7 @@ undefined behavior.
 .section .bss
 .align 16
 stack_bottom:
-.skip 16384 # 16 KiB
+ .skip 16384 /* 16 KiB */
 stack_top:
 
 /*
@@ -52,7 +49,7 @@ _start:
 	stack (as it grows downwards on x86 systems). This is necessarily done
 	in assembly as languages such as C cannot function without a stack.
 	*/
-	mov $stack_top, %esp
+	mov stack_top, esp
 
 	/*
 	This is a good place to initialize crucial processor state before the
@@ -88,8 +85,8 @@ _start:
 	   non-maskable interrupt occurring or due to system management mode.
 	*/
 	cli
-1:	hlt
-	jmp 1b
+infinite:	hlt
+	jmp infinite
 
 /*
 Set the size of the _start symbol to the current location '.' minus its start.
