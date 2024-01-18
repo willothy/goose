@@ -5,6 +5,8 @@
 use core::arch::global_asm;
 use core::panic::PanicInfo;
 
+mod multiboot;
+
 global_asm!(include_str!("boot.asm"));
 
 static mut VGA_BUFFER: *mut u8 = 0xb8000 as *mut u8;
