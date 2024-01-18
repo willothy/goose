@@ -49,8 +49,8 @@ SECTIONS
 	/* Read-write data (uninitialized) and stack */
 	.bss ALIGN(4K) : ALIGN(4K)
 	{
-		*(COMMON)
 		*(.bss)
+		*(COMMON)
 	}
 
 	/* The compiler may produce other sections, by default it will put them in

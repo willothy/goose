@@ -1,5 +1,5 @@
-#ARCH := "x86_64"
-ARCH := "i686"
+ARCH := "x86_64"
+#ARCH := "i686"
 QEMU_ARCH := if ARCH == "x86_64" { "x86_64" } else { "i386" }
 TARGET := ARCH + "-bruh_os"
 
@@ -7,22 +7,21 @@ TARGET := ARCH + "-bruh_os"
 list:
   @just --list
 
-clean: distclean
-  cargo clean
-
 distclean:
   rm -rf isodir
   rm -f bruh_os.iso
 
+clean: distclean
+  cargo clean
+
 build: distclean
-  cargo build --target {{TARGET}}.json
-  mkdir -p isodir/boot/grub
-  cp target/{{TARGET}}/debug/bruh_os isodir/boot/bruh_os.bin
-  cp grub.cfg isodir/boot/grub/grub.cfg
+  cargo build --package loader --target i686-bruh_os.json
+  cargo build --package bruh_os --target x86_64-bruh_os.json
+  cp target/x86_64-bruh_os/debug/bruh_os isodir/boot/kernel.bin
   grub-mkrescue -o bruh_os.iso isodir
 
 run: build
-  qemu-system-{{QEMU_ARCH}} -cdrom bruh_os.iso
+  qemu-system-x86_64 -cdrom bruh_os.iso
 
 dump-header:
   rust-objdump -f target/{{TARGET}}/debug/bruh_os

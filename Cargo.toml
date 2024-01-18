@@ -16,3 +16,9 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 
+[workspace]
+members = [
+        "loader",
+        # "runner"
+]
+
