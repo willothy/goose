@@ -10,13 +10,11 @@
   "panic-strategy": "abort",
   "disable-redzone": true,
   "features": "-mmx,-sse,+soft-float",
-  "linker-flavor": "gcc",
-  "linker": "x86_64-elf-gcc",
-  "linker-flavor_": "ld.lld",
-  "linker_": "rust-lld",
+  "linker-flavor": "ld.lld",
+  "linker": "rust-lld",
   "pre-link-args": {
+    "ld.lld": [],
     "gcc": [
-      "-Wl,--script=linker.ld",
       "-ffreestanding",
       "-O2",
       "-nostdlib",
