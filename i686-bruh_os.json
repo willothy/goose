@@ -13,9 +13,7 @@
   "linker-flavor": "ld.lld",
   "linker": "rust-lld",
   "pre-link-args": {
-    "ld.lld": [
-      "-zmax-page-size=4096"
-    ],
+    "ld.lld": [],
     "gcc": [
       "-ffreestanding",
       "-O2",

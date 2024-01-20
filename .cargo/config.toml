@@ -1,7 +1,7 @@
 
 [build]
 # target = "i686-bruh_os.json"
-target = "x86_64-unknown-none"
+target = "x86_64-bruh_os.json"
 
 [unstable]
 # # enable the unstable artifact-dependencies feature, see

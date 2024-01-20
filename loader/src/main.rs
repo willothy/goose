@@ -5,7 +5,7 @@ mod multiboot_header;
 
 global_asm!(include_str!("boot.asm"));
 
-use core::{arch::global_asm, ffi::c_void, panic::PanicInfo, ptr::addr_of_mut};
+use core::{arch::global_asm, panic::PanicInfo, ptr::addr_of_mut};
 use elf::endian::AnyEndian;
 use elf::ElfBytes;
 use multiboot::information::MemoryManagement;
@@ -98,7 +98,7 @@ impl MemoryManagement for Mem {
 
 static mut MEM: Mem = Mem;
 
-fn load_elf_module(start: u64, end: u64) -> usize {
+fn load_elf_module(start: u64, end: u64) -> u64 {
     let start = start as usize;
     let end = end as usize;
     let size = end - start;
@@ -124,7 +124,7 @@ fn load_elf_module(start: u64, end: u64) -> usize {
         }
     }
 
-    return file.ehdr.e_entry as usize;
+    return file.ehdr.e_entry;
 }
 
 #[allow(dead_code)]
@@ -168,11 +168,11 @@ fn print_hex_64(n: u64) {
 
 extern "C" {
     fn setup_long_mode();
-    fn load_kernel(entry: usize, mboot_ptr: u32);
+    fn load_kernel(entry: u64, mboot_ptr: usize);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn loader_main(mboot_ptr: u32) -> ! {
+pub unsafe extern "C" fn loader_main(mboot_ptr: usize) -> ! {
     println(b"Initializing\n");
 
     let mb = Multiboot::from_ptr(mboot_ptr as u64, addr_of_mut!(MEM).as_mut().unwrap())
@@ -192,8 +192,15 @@ pub unsafe extern "C" fn loader_main(mboot_ptr: u32) -> ! {
 
     let entry = load_elf_module(start, end);
 
-    print(b"kernel loaded\n");
-    print_hex(entry as usize as u32);
+    println(b"kernel loaded");
+    print(b"entry is null: ");
+    if entry == 0 {
+        println(b"true");
+    } else {
+        println(b"false");
+    }
+    print(b"entry: ");
+    print_hex_64(entry);
     newline();
 
     setup_long_mode();
