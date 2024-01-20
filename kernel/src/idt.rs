@@ -1,9 +1,7 @@
-use spin::once::Once;
+use spin::lazy::Lazy;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
-use crate::println;
-
-static mut IDT: Once<InterruptDescriptorTable> = Once::new();
+use crate::{gdt, println};
 
 macro_rules! handler {
     ($name:ident: $body:expr) => {
@@ -53,25 +51,23 @@ handlers! {
     };
 }
 
-pub fn init() {
-    unsafe {
-        IDT.call_once(|| InterruptDescriptorTable::new());
-    }
-    let idt = get_mut();
+static mut IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
+    let mut idt = InterruptDescriptorTable::new();
     idt.breakpoint.set_handler_fn(breakpoint);
     idt.divide_error.set_handler_fn(divide);
-    idt.double_fault.set_handler_fn(double_fault);
+    unsafe {
+        idt.double_fault
+            .set_handler_fn(double_fault)
+            .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
+    }
 
     idt[32].set_handler_fn(timer);
 
-    idt.load();
-}
+    idt
+});
 
-#[allow(dead_code)]
-pub fn get() -> &'static InterruptDescriptorTable {
-    unsafe { IDT.get().expect("IDT not initialized") }
-}
-
-pub fn get_mut() -> &'static mut InterruptDescriptorTable {
-    unsafe { IDT.get_mut().expect("IDT not initialized") }
+pub fn init() {
+    unsafe {
+        IDT.load();
+    }
 }

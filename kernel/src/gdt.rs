@@ -100,8 +100,8 @@ static mut TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 struct Selectors {
-    code_selector: SegmentSelector,
-    tss_selector: SegmentSelector,
+    code: SegmentSelector,
+    tss: SegmentSelector,
 }
 
 #[allow(dead_code)]
@@ -114,15 +114,19 @@ static mut GDT: Lazy<Gdt> = Lazy::new(|| {
     let mut gdt = GlobalDescriptorTable::new();
     Gdt {
         selectors: Selectors {
-            code_selector: gdt.add_entry(Descriptor::kernel_code_segment()),
-            tss_selector: gdt.add_entry(Descriptor::tss_segment(unsafe { &*addr_of!(TSS) })),
+            code: gdt.add_entry(Descriptor::kernel_code_segment()),
+            tss: gdt.add_entry(Descriptor::tss_segment(unsafe { &*addr_of!(TSS) })),
         },
         gdt,
     }
 });
 
 pub fn init() {
+    use x86_64::instructions::segmentation::{Segment, CS};
+    use x86_64::instructions::tables::load_tss;
     unsafe {
         GDT.gdt.load();
+        CS::set_reg(GDT.selectors.code);
+        load_tss(GDT.selectors.tss);
     }
 }
