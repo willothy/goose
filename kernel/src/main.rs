@@ -2,7 +2,9 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(abi_x86_interrupt)]
-
+#![feature(custom_test_frameworks)]
+#![test_runner(crate::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 use core::panic::PanicInfo;
 
 mod boot_info;
@@ -32,6 +34,29 @@ pub(crate) unsafe fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum QemuExitCode {
+    Success = 0x10,
+    Failed = 0x11,
+}
+
+pub fn exit_qemu(exit_code: QemuExitCode) {
+    use x86_64::instructions::port::Port;
+    unsafe {
+        let mut port = Port::new(0xf4);
+        port.write(exit_code as u32);
+    }
+}
+
+pub fn test_runner(tests: &[&dyn Fn()]) {
+    println!("Running {} tests", tests.len());
+    for test in tests {
+        test();
+    }
+    exit_qemu(QemuExitCode::Success);
+}
+
 #[no_mangle]
 pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     boot_info::init(mboot_ptr).expect("Failed to initialize boot info");
@@ -49,6 +74,9 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     interrupts::enable();
 
     println!("Interrupts enabled");
+
+    #[cfg(test)]
+    test_main();
 
     loop {}
 }

@@ -1,4 +1,5 @@
 use spin::{lazy::Lazy, Mutex};
+use x86_64::instructions::interrupts::without_interrupts;
 
 pub const VGA_WIDTH: usize = 80;
 pub const VGA_HEIGHT: usize = 25;
@@ -133,7 +134,7 @@ macro_rules! print {
 
 pub fn fmt(args: core::fmt::Arguments) {
     use core::fmt::Write;
-    unsafe {
+    without_interrupts(|| unsafe {
         WRITER.lock().write_fmt(args).unwrap();
-    }
+    });
 }

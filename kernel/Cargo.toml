@@ -3,19 +3,15 @@ name = "kernel"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-test = false
-bench = false
-name = "kernel"
-
 [lib]
 name = "kernel"
 path = "src/main.rs"
-test = false
-bench = false
 crate-type = ["staticlib"]
 
 [dependencies]
 multiboot2 = { version = "0.19.0", default-features = false }
 spin = "0.9.8"
 x86_64 = "0.14.11"
+
+[package.metadata.testing]
+args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04"]

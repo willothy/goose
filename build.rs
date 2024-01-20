@@ -1,7 +1,5 @@
 use std::{env, fs, path::PathBuf, process::Command};
 
-use walkdir::WalkDir;
-
 fn main() {
     let manifest = env::var("CARGO_MANIFEST_DIR").expect("to find the manifest dir");
     let root = PathBuf::from(manifest);
@@ -41,57 +39,6 @@ fn main() {
     }
     fs::copy(grub_cfg, grub_cfg_target).expect("to copy grub.cfg");
 
-    // let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    //
-    // let loader_crate = root.join("loader");
-    //
-    // if !loader_crate.exists() {
-    //     panic!("loader crate not found");
-    // }
-    // if !loader_crate.is_dir() {
-    //     panic!("loader crate is not a dir");
-    // }
-    // for entry in WalkDir::new(loader_crate.join("src")) {
-    //     if let Ok(entry) = entry {
-    //         if entry.file_type().is_file() {
-    //             println!("cargo:rerun-if-changed={}", entry.path().display());
-    //         }
-    //     }
-    // }
-
-    // cmd.arg("install")
-    //     .arg("loader")
-    //     .arg("--path")
-    //     .arg(loader_crate)
-    //     .arg("--root")
-    //     .arg(&out_dir);
-    // .arg("--target-dir")
-    // .arg(&out_dir);
-
-    // cmd.arg("--target").arg("i686-bruh_os.json");
-    // cmd.arg("-Zbuild-std=core,compiler_builtins");
-    // cmd.arg("-Zbuild-std-features=compiler-builtins-mem");
-    //
-    // cmd.env_remove("RUSTFLAGS");
-    // cmd.env_remove("CARGO_ENCODED_RUSTFLAGS");
-    // cmd.env_remove("RUSTC_WORKSPACE_WRAPPER");
-
-    // let output = cmd.output().expect("to run cargo nasm boot.asm");
-    // if !output.status.success() {
-    //     panic!(
-    //         "cargo install loader failed: {}",
-    //         String::from_utf8_lossy(&output.stderr)
-    //     );
-    // }
-    // let loader_lib = out_dir
-    //     // .join("i686-bruh_os")
-    //     // .join("release")
-    //     // .join("libloader.a");
-    //     // .join("bin")
-    //     .join("loader");
-
-    // let loader_bin = convert_elf_to_bin(loader_lib);
-
     // copy the kernel binary
     let kernel_lib = env::var("CARGO_STATICLIB_FILE_KERNEL_kernel").expect("to find kernel bin");
 
@@ -129,8 +76,6 @@ fn main() {
     let output = cmd.output().expect("to run ld");
     if !output.status.success() {
         panic!("ld failed: {}", String::from_utf8_lossy(&output.stderr));
-    } else {
-        // println!("cargo:rustc-link-lib=static=loader");
     }
 
     let out = Command::new("grub-mkrescue")
@@ -142,31 +87,4 @@ fn main() {
     if !out.success() {
         panic!("grub-mkrescue failed");
     }
-}
-
-fn convert_elf_to_bin(elf_path: PathBuf) -> PathBuf {
-    let flat_binary_path = elf_path.with_extension("bin");
-
-    let llvm_tools = llvm_tools::LlvmTools::new().expect("failed to get llvm tools");
-    let objcopy = llvm_tools
-        .tool(&llvm_tools::exe("llvm-objcopy"))
-        .expect("LlvmObjcopyNotFound");
-
-    // convert first stage to binary
-    let mut cmd = Command::new(objcopy);
-    cmd.arg("-I").arg("elf64-x86-64");
-    cmd.arg("-O").arg("binary");
-    cmd.arg("--binary-architecture=i386:x86-64");
-    cmd.arg(&elf_path);
-    cmd.arg(&flat_binary_path);
-    let output = cmd
-        .output()
-        .expect("failed to execute llvm-objcopy command");
-    if !output.status.success() {
-        panic!(
-            "objcopy failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    flat_binary_path
 }

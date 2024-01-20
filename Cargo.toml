@@ -7,8 +7,6 @@ edition = "2021"
 [[bin]]
 name = "runner"
 path = "runner/main.rs"
-test = false
-bench = false
 
 [build-dependencies]
 llvm-tools = "0.1.1"
@@ -18,6 +16,7 @@ walkdir = "2.4.0"
 path = "kernel"
 artifact = "staticlib"
 target = "x86_64-unknown-none"
+test = true
 
 [workspace]
 members = [

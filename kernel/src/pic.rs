@@ -30,6 +30,8 @@
 
 use core::arch::asm;
 
+use x86_64::instructions::port::Port;
+
 fn read_byte(port: u16) -> u8 {
     let ret: u8;
     unsafe {
@@ -52,39 +54,89 @@ fn init_pit() {
     write_byte(0x40, (divisor >> 8) as u8);
 }
 
-pub mod master {
-    pub const COMM: u16 = 0x20;
-    pub const DATA: u16 = 0x21;
+pub mod pic_1 {
+    use x86_64::instructions::port::Port;
+
+    pub static mut COMM: Port<u8> = Port::new(0x20);
+    pub static mut DATA: Port<u8> = Port::new(0x21);
+    pub const OFFSET: u8 = 0x20;
+    pub const CASCADE: u8 = 0x04;
 }
 
-pub mod slave {
-    pub const COMM: u16 = 0xA0;
-    pub const DATA: u16 = 0xA1;
+pub mod pic_2 {
+    use x86_64::instructions::port::Port;
+
+    pub static mut COMM: Port<u8> = Port::new(0xA0);
+    pub static mut DATA: Port<u8> = Port::new(0xA1);
+    pub const OFFSET: u8 = 0x28;
+    pub const CASCADE: u8 = 0x02;
 }
 
-pub mod cmd {
-    pub const INIT: u8 = 0x11;
-}
+const INIT_CMD: u8 = 0x11;
+const INTERRUPT_END_CMD: u8 = 0x20;
+const MODE_8086: u8 = 0x01;
 
 fn init_pic() {
     // TODO: do more research and document this
-    write_byte(master::COMM, cmd::INIT);
-    write_byte(slave::COMM, cmd::INIT);
 
-    write_byte(master::DATA, 0x20 /* 32 */);
-    write_byte(slave::DATA, 0x28 /* 40 */);
+    // Write garbage data to ports to add some delay for the PICs to initialize.
+    // This is sometimes necessary because the PICs are slow to initialize on older hardware.
+    // TODO: is this really necessary?
+    //
+    // source: [pic8295](https://docs.rs/pic8259/latest)
+    let mut wait_port: Port<u8> = Port::new(0x80);
 
-    write_byte(master::DATA, 0x04);
-    write_byte(slave::DATA, 0x02);
+    // TODO: do I need to do this?
+    let mask1 = unsafe { pic_1::DATA.read() };
+    let mask2 = unsafe { pic_2::DATA.read() };
 
-    write_byte(master::DATA, 0x01);
-    write_byte(slave::DATA, 0x01);
+    unsafe {
+        // Send initialization commands
+        pic_1::COMM.write(INIT_CMD);
+        wait_port.write(0);
+        pic_2::COMM.write(INIT_CMD);
+        wait_port.write(0);
 
-    write_byte(master::DATA, 0b11111110);
-    write_byte(slave::DATA, 0b11111111);
+        // Setup offsets
+        pic_1::DATA.write(pic_1::OFFSET);
+        wait_port.write(0);
+        pic_2::DATA.write(pic_2::OFFSET);
+        wait_port.write(0);
+
+        // Setup chaining between PIC1 and PIC2
+        pic_1::DATA.write(pic_1::CASCADE);
+        wait_port.write(0);
+        pic_2::DATA.write(pic_2::CASCADE);
+        wait_port.write(0);
+
+        // Set PICs to 8086/88 mode
+        pic_1::DATA.write(MODE_8086);
+        wait_port.write(0);
+        pic_2::DATA.write(MODE_8086);
+        wait_port.write(0);
+
+        // Restore saved masks
+        pic_1::DATA.write(mask1);
+        pic_2::DATA.write(mask2);
+    }
 }
 
 pub fn init() {
     init_pit();
     init_pic();
+}
+
+pub fn end_interrupt(id: u8) {
+    let one = pic_1::OFFSET <= id && id < pic_1::OFFSET + 8;
+    let two = pic_2::OFFSET <= id && id < pic_2::OFFSET + 8;
+    if one || two {
+        if two {
+            unsafe {
+                pic_2::COMM.write(INTERRUPT_END_CMD);
+            }
+        }
+        unsafe {
+            pic_1::COMM.write(INTERRUPT_END_CMD);
+        }
+    }
 }
