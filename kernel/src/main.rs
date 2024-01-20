@@ -6,6 +6,7 @@
 use core::panic::PanicInfo;
 
 mod boot_info;
+mod gdt;
 mod idt;
 mod pic;
 mod vga;
@@ -31,20 +32,17 @@ pub(crate) unsafe fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
-extern "C" {
-    fn load_gdt();
-}
-
 #[no_mangle]
 pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     boot_info::init(mboot_ptr).expect("Failed to initialize boot info");
 
     println!("Hello from 64-bit Rust! Successfully entered long mode.");
 
+    // Set up the GDT.
+    gdt::init();
+
     // Set up the IDT entries.
     idt::init();
-
-    unsafe { load_gdt() };
 
     pic::init();
 
