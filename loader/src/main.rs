@@ -79,7 +79,7 @@ extern "C" {
     // Defined in boot.asm
     fn setup_long_mode();
     // Defined in load.asm
-    fn load_kernel(entry: u64, mboot_ptr: usize);
+    fn load_kernel(entry: u64);
 }
 
 #[no_mangle]
@@ -116,7 +116,7 @@ pub unsafe extern "C" fn loader_main(mboot_ptr: usize) -> ! {
 
     setup_long_mode();
     println(b"long mode enabled");
-    load_kernel(entry, mboot_ptr);
+    load_kernel(entry);
 
     loop {}
 }
