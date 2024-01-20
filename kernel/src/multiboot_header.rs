@@ -33,6 +33,7 @@ pub const CHECKSUM: i32 = -(MAGIC + FLAGS);
 /// won't be optimized out *before* linking.
 #[used]
 #[link_section = ".multiboot"]
+#[no_mangle]
 pub static HEADER: MultibootHeader = MultibootHeader {
     magic: MAGIC,
     flags: FLAGS,

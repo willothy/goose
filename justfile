@@ -15,10 +15,7 @@ clean: distclean
   cargo clean
 
 build: distclean
-  cargo build --package loader --target i686-bruh_os.json
-  cargo build --package bruh_os --target x86_64-bruh_os.json
-  cp target/x86_64-bruh_os/debug/bruh_os isodir/boot/kernel.bin
-  grub-mkrescue -o bruh_os.iso isodir
+  cargo build
 
 run: build
   qemu-system-x86_64 -cdrom bruh_os.iso

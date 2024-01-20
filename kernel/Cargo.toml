@@ -1,15 +1,21 @@
 [package]
-name = "loader"
+name = "kernel"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "loader"
+test = false
+bench = false
+name = "kernel"
+
+[lib]
+name = "kernel"
 path = "src/main.rs"
 test = false
 bench = false
+crate-type = ["staticlib"]
 
 [dependencies]
-elf = { version = "0.7.4", default-features = false }
-multiboot = "0.8.0"
 common = { path = "../common" }
+
+

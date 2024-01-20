@@ -9,7 +9,7 @@ and [StreamOS](https://github.com/sphaerophoria/stream-os).
 
 - 64-bit, x86_64
 - Bootable by grub or similar (BIOS, UEFI is a non-goal for now)
-  - Multiboot1 for now, probably 2 later
+  - Multiboot2
 - Run on multiple CPU cores (SMP)
 - Support for simple graphics such as text and shapes
 - Preemptive, multicore scheduler (main goal, I want to learn about this)
@@ -36,25 +36,23 @@ of the kernel myself. I really just didn't want to deal with multiboot or writin
 
 Multiboot1 compatible (maybe multiboot2 in the future).
 
-Stage 1 (/loader, target: i686-unknown-none / i686-bruh_os.json):
+Stage 1 (/boot.asm, /boot64.asm):
 
 - This is where grub puts us initially
 - setup stack and do protected mode (32-bit) init stuff
 - parse multiboot info (using multiboot crate)
-- retrieve kernel module
-- parse elf module
-- get kernel entry point from elf module
-
-TODO:
-
 - setup basic paging so we can enter long mode
 - setup basic gdt so CPU lets us into long mode
 - setup long mode (64-bit)
 - jump to kernel entry point in long mode
 
-Stage 2: (/src, target: x86_64-unknown-none / x86_64-bruh_os.json):
+TODO: move some of this bootstrap code to 32-bit Rust
+I tried to do this before with *some* success, but found linking back and
+forth difficult so I went with full asm for now.
 
-- This currently does nothing because we cannot yet enter long mode.
+Stage 2: (/src, target):
+
+- Prints some text.
 
 TODO:
 
