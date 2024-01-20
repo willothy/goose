@@ -12,9 +12,11 @@ pub fn print(s: &[u8]) {
     s.iter().for_each(|&byte| unsafe {
         if LAST_ROW >= VGA_HEIGHT {
             LAST_ROW = 0;
+            LAST_COL = 0;
         }
         if LAST_COL >= VGA_WIDTH {
             LAST_COL = 0;
+            LAST_ROW += 1;
         }
         match byte {
             b'\n' => {

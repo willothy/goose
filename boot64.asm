@@ -13,39 +13,14 @@ long_mode_entry:
     mov fs, ax
     mov gs, ax
 
-    ; setup divide by zero handler
-    mov rdi, 0
-    mov rsi, handler_0
-    call set_idt_handler
-
-    ; set up GDT
-    lgdt [gdt.ptr]
-
-    ; setup the idt
-    lidt [idt.ptr]
-
     call kernel_main
     hlt
 
-handler_0:
-    mov byte [0xb8000], 'D'
-    mov byte [0xb8001], 0xc
-
-    jmp end
-
-    iretq
-
-set_idt_handler:
-    shl rdi, 8   ; multiply by 256 (2^8)
-    add rdi, idt ; add the base address of the idt
-
-    mov [rdi], si ; copy lower 16 bits into first entry
-    shr rsi, 16   ; bits 16-31 are now in ax
-    mov [rdi + 6], si
-    shr rsi, 16   ; bits 32-63 are now in eax
-    mov [rdi + 8], esi ; copy upper 32 bits into first entry
-
-    ret
+; TODO: move GDT init to Rust
+global load_gdt
+load_gdt:
+  lgdt [gdt.ptr]
+  ret
 
 end:
     hlt
@@ -135,22 +110,3 @@ gdt:
 .ptr:
   dw $ - gdt - 1
   dq gdt
-
-idt:
-    %rep 256
-        dw 0
-        dw 0x8 ; code segment selector
-
-        ; P  DPL   TYPE
-        ; 1  00    1110
-        db 0
-        db 0x8e ; 1000 1110
-
-        dw 0
-
-        dd 0
-        dd 0
-    %endrep
-.ptr:
-    dw $ - idt - 1
-    dq idt
