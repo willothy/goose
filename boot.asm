@@ -280,6 +280,7 @@ p3_table:
 p2_table:
   resb 4096
 
+global stack_top
 stack_bottom:
   resb STACK_SZ * MAX_CPUS
 stack_top:

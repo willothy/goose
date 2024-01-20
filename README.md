@@ -26,8 +26,8 @@ my goal here is to really figure out how OS dev works and how to do it myself.
 I am writing it in Rust because I like Rust, but also because most of the available resources use
 C so I will not have the temptation to copy-paste. Also, there will be crates available for some
 tasks which is a nice improvement from c-land. I am already making use of the
-[multiboot](https://github.com/gz/rust-multiboot) and [elf](https://github.com/cole14/rust-elf/) crates,
-which have simplified the bootloader integration process massively.
+[multiboot2](https://github.com/rust-osdev/multiboot2) and [spin](https://github.com/mvdnes/spin-rs) crates for
+parsing multiboot info and sync primitives, respectively.
 
 While I will use crates for some things, I will be implementing as much as possible
 of the kernel myself. I really just didn't want to deal with multiboot or writing an elf parser.
@@ -52,11 +52,13 @@ forth difficult so I went with full asm for now.
 
 Stage 2: (/src, target):
 
-- Prints some text.
+- Parse multiboot info
+- Setup long mode GDT (WIP)
+- Setup IDT and interrupt handlers (WIP)
+- Print memory map and boot info for debugging.
 
 TODO:
 
 - Setup long mode 4-level paging
-- Setup / reload GDT
-- Handle interrupts
 - Memory allocator so I can use the `alloc` crate and the heap
+- etc...

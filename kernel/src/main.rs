@@ -3,15 +3,12 @@
 #![feature(panic_info_message)]
 #![feature(abi_x86_interrupt)]
 
-use core::{
-    arch::asm,
-    panic::PanicInfo,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::{arch::asm, panic::PanicInfo};
 
 static PANIC_MSG: &[u8] = b"Panic";
 static HELLO: &[u8] = b"Hello from 64-bit Rust! Successfully entered long mode.\n";
 
+mod boot_info;
 mod idt;
 mod multiboot_header;
 mod pic;
@@ -214,7 +211,7 @@ pub unsafe fn restore_reg_states(
 }
 
 #[no_mangle]
-pub extern "C" fn kernel_main() -> ! {
+pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     print(HELLO);
 
     // Set up the IDT ptr.
@@ -238,5 +235,10 @@ pub extern "C" fn kernel_main() -> ! {
     }
 
     print(b"Interrupts enabled\n");
+
+    boot_info::init(mboot_ptr).expect("Failed to initialize boot info");
+
+    boot_info::print();
+
     loop {}
 }

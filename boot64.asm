@@ -1,6 +1,7 @@
 [BITS 64]
 
 extern kernel_main
+extern stack_top
 
 section .text
 global long_mode_entry
@@ -13,6 +14,8 @@ long_mode_entry:
     mov fs, ax
     mov gs, ax
 
+    ; mov edi, ebx
+    mov edi, [stack_top - 4]
     call kernel_main
     hlt
 
