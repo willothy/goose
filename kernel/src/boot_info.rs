@@ -14,12 +14,14 @@ pub fn init(mboot_ptr: usize) -> Result<(), ()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn get() -> &'static BootInformation<'static> {
     MULTIBOOT_INFO
         .get()
         .expect("Boot information not initialized")
 }
 
+#[allow(dead_code)]
 pub fn dump() {
     let boot_info = get();
     if let Some(loader) = boot_info.boot_loader_name_tag().and_then(|t| t.name().ok()) {

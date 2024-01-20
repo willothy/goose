@@ -3,7 +3,7 @@
 #![feature(panic_info_message)]
 #![feature(abi_x86_interrupt)]
 
-use core::{arch::asm, panic::PanicInfo};
+use core::panic::PanicInfo;
 
 mod boot_info;
 mod idt;
