@@ -10,7 +10,6 @@ static HELLO: &[u8] = b"Hello from 64-bit Rust! Successfully entered long mode.\
 
 mod boot_info;
 mod idt;
-mod multiboot_header;
 mod pic;
 
 use common::*;
