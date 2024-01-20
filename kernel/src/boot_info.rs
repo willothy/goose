@@ -1,8 +1,7 @@
 use multiboot2::{BootInformation, BootInformationHeader};
 use spin::Once;
 
-use common::print as _print;
-use common::*;
+use crate::println;
 
 pub static MULTIBOOT_INFO: Once<BootInformation> = Once::new();
 
@@ -21,62 +20,51 @@ pub fn get() -> &'static BootInformation<'static> {
         .expect("Boot information not initialized")
 }
 
-pub fn print() {
+pub fn dump() {
     let boot_info = get();
     if let Some(loader) = boot_info.boot_loader_name_tag().and_then(|t| t.name().ok()) {
-        _print(b"Loaded by ");
         if loader.as_bytes().len() == 0 {
-            println(b"unknown loader");
+            println!("Loaded by unknown loader");
         } else {
-            println(loader.as_bytes());
+            println!("Loaded by {}", loader);
         }
     } else {
-        println(b"No loader name");
+        println!("No loader name");
     }
     if let Some(cmdline) = boot_info.command_line_tag().and_then(|x| x.cmdline().ok()) {
-        _print(b"Command line: ");
         if cmdline.as_bytes().len() == 0 {
-            println(b"unknown");
+            println!("Command line unknown");
         } else {
-            println(cmdline.as_bytes());
+            println!("Command line: {}", cmdline);
         }
     } else {
-        println(b"No command line");
+        println!("No command line");
     }
 
     if let Some(mem) = boot_info.basic_memory_info_tag() {
         let upper = mem.memory_upper();
         let lower = mem.memory_lower();
-        _print(b"Memory bounds (basic info): ");
-        print_hex(lower);
-        _print(b" : ");
-        print_hex(upper);
-        newline();
+        println!("Memory bounds (basic info): 0x{:0X}:0x{:0X}", lower, upper);
     } else {
-        println(b"No basic memory info");
+        println!("No basic memory info");
     }
 
     if let Some(mem) = boot_info.memory_map_tag() {
-        let entry_size = mem.entry_size();
-        let entry_ver = mem.entry_version();
         let map = mem.memory_areas();
-        println(b"Memory map:");
-        _print(b"  Size: ");
-        print_hex(entry_size);
-        newline();
-        _print(b"  Version: ");
-        print_hex(entry_ver);
-        newline();
+        println!("Memory map:");
+        println!("  Size: 0x{:0X}", mem.entry_size());
+        println!("  Version: 0x{:0X}", mem.entry_version());
+
         for (i, area) in map.iter().enumerate() {
-            _print(b"  Entry ");
-            print_int(i as u32);
-            _print(b" : ");
-            print_hex_64(area.end_address());
-            _print(b" : ");
-            print_hex_64(area.size());
-            newline();
+            println!(
+                "  Entry {}: 0x{:0X}:0x{:0X}\n  Size: 0x{:0X}",
+                i,
+                area.start_address(),
+                area.end_address(),
+                area.size()
+            );
         }
     } else {
-        println(b"No memory map");
+        println!("No memory map");
     }
 }
