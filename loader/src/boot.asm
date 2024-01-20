@@ -41,8 +41,6 @@ _start:
   push ebx
   call loader_main
 
-  cli
-
   jmp end
 
 .global setup_long_mode

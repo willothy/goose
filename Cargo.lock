@@ -5,6 +5,13 @@ version = 3
 [[package]]
 name = "bruh_os"
 version = "0.1.0"
+dependencies = [
+ "common",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
 
 [[package]]
 name = "elf"
@@ -16,6 +23,7 @@ checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 name = "loader"
 version = "0.1.0"
 dependencies = [
+ "common",
  "elf",
  "multiboot",
 ]

@@ -12,3 +12,4 @@ bench = false
 [dependencies]
 elf = { version = "0.7.4", default-features = false }
 multiboot = "0.8.0"
+common = { path = "../common" }
