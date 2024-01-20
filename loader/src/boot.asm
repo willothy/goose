@@ -126,9 +126,50 @@ This is useful when debugging or when you implement call tracing.
 
 .global setup_long_mode
 setup_long_mode:
+  cld /* Clear the direction flag */
+
+  /* Zero out the first 16KB memory */
+  /*
+  TODO: why did course say to do this?
+  This may be redundant bc I have already setup the
+  stack.
+  */
+  mov edi, 0x80000
+  xor eax, eax
+  mov ecx, 0x4000 /* 16384 */
+  rep stosd
+
+  /*
+  TODO: note why we are doing this. I do not know yet.
+  Course said to do it and that it will be explained later.
+  */
+  mov dword [0x80000], 0x81007
+  mov dword [0x81000], 0b10000111
+
   /*
   Setup the GDT
   */
+  lgdt [gdt_ptr]
+
+  /* See https://wiki.osdev.org/CPU_Registers_x86 */
+  mov eax, cr4
+  or eax, (1<<5) /* Enable PAE (https://wiki.osdev.org/PAE) */
+  mov cr4, eax
+
+  /*
+  Enable page-lebel writethrough (PWT)
+
+  CR3:
+  The CR3 register is used for holding the base address of the page directory (thanks copilot?)
+
+  Bits 3 and 4 are flags:
+  3: Page-level write-through (PWT)
+  4: Page-level cache disable (PCD)
+  PWT and PCD are not used if bit 17 of cr4 (PCIDE) is set. (TODO: what is PCIDE?)
+  Bits 12-31 (or 63 in long mode) are the page directory base address (PDBR)
+  */
+  mov eax, 0x80000 /* 0x80000 = 1 << 19 */
+  mov cr3, eax
 
   ret /* Return to Rust code, which will then call load_kernel */
 
@@ -217,6 +258,7 @@ gdt:
   .quad 0x0
   /* Kernel code segment */
   .quad 0x0020980000000000
+  /* No need for data segment in loader GDT, because we are in ring 0 */
 .equ gdt_len, . - gdt
 gdt_ptr:
   .word gdt_len - 1
