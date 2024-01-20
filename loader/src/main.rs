@@ -4,6 +4,7 @@
 mod multiboot_header;
 
 global_asm!(include_str!("boot.asm"));
+global_asm!(include_str!("load.asm"));
 
 use core::{arch::global_asm, panic::PanicInfo, ptr::addr_of_mut};
 use elf::endian::AnyEndian;
@@ -75,7 +76,9 @@ fn load_elf_module(start: u64, end: u64) -> u64 {
 }
 
 extern "C" {
+    // Defined in boot.asm
     fn setup_long_mode();
+    // Defined in load.asm
     fn load_kernel(entry: u64, mboot_ptr: usize);
 }
 
@@ -112,6 +115,7 @@ pub unsafe extern "C" fn loader_main(mboot_ptr: usize) -> ! {
     newline();
 
     setup_long_mode();
+    println(b"long mode enabled");
     load_kernel(entry, mboot_ptr);
 
     loop {}
