@@ -34,35 +34,54 @@ of the kernel myself. I really just didn't want to deal with multiboot or writin
 
 ## Architecture
 
-Multiboot1 compatible (maybe multiboot2 in the future).
+Multiboot2 compatible.
 
-Stage 1 (/boot.asm, /boot64.asm):
+Everything can be compiled with a standard nightly Rust toolchain (target = x86_64-unknown-none); no special gcc cross-compiler is needed.
+
+`nasm` and a linker are required as well, to build the assembly files and construct the final executable.
+
+The current build setup uses `grub-mkrescue` to construct a bootable image, but this could be adapted to other
+bootloaders / systems as long as multiboot2 is supported.
+
+Bootstrap (/boot.asm, /boot64.asm):
 
 - This is where grub puts us initially
 - setup stack and do protected mode (32-bit) init stuff
-- parse multiboot info (using multiboot crate)
 - setup basic paging so we can enter long mode
 - setup basic gdt so CPU lets us into long mode
 - setup long mode (64-bit)
 - jump to kernel entry point in long mode
 
-TODO: move some of this bootstrap code to 32-bit Rust
-I tried to do this before with *some* success, but found linking back and
-forth difficult so I went with full asm for now.
+TODO: move some of this bootstrap code to 32-bit Rust. I tried to do this before
+with *some* success, but found linking back and forth difficult so I went with full asm for now.
 
-Stage 2: (/src, target):
+Kernel: (/kernel):
 
-- Parse multiboot info
+- Parse multiboot info (using multiboot2 crate)
+- Setup VGA writer
 - Setup long mode GDT (WIP)
 - Setup IDT and interrupt handlers (WIP)
-- Print memory map and boot info for debugging.
+- Setup and enable PICs and PIT
+
+Working (sorta) but not enabled:
+
+- Jump to userland (WIP)
+  - Currently cannot get interrupts to re-enable when entering user mode due to general protection fault
 
 TODO:
 
 - Setup long mode 4-level paging
 - Memory allocator so I can use the `alloc` crate and the heap
-- USB driver
-- Serial driver
-- Basic filesystem (FAT32?)
 - Test harness
+- Serial driver
+- USB driver
+- Basic filesystem (FAT32?)
+- Scheduler + processes
+  - SMP boot / AP trampoline code
 - etc...
+
+Runner (/runner):
+
+- Builds and runs the kernel
+- I should look at how the bootloader / bootimage crates do things
+- Need to make framework for running tests / communicating via serial.
