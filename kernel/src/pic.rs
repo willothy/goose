@@ -28,115 +28,131 @@
 //!   - 111 (7): Square wave generator, same as 011
 //! - Bits 0: Binaryh/BCD mode (0 = 16-bit binary, 1 = four-digit BCD)
 
-use core::arch::asm;
-
+use spin::rwlock::RwLock;
 use x86_64::instructions::port::Port;
 
-fn read_byte(port: u16) -> u8 {
-    let ret: u8;
-    unsafe {
-        asm!("in al, dx", out("al") ret, in("dx") port);
-    }
-    ret
-}
-
-fn write_byte(port: u16, data: u8) {
-    unsafe {
-        asm!("out dx, al", in("dx") port, in("al") data);
-    }
-}
-
 fn init_pit() {
+    let mut port_43: Port<u8> = Port::new(0x43);
+    let mut port_40: Port<u8> = Port::new(0x40);
     let data = (1 << 2) | (3 << 4);
-    write_byte(0x43, data);
+    unsafe {
+        port_43.write(data);
+    }
     let divisor = 1193182 / 100;
-    write_byte(0x40, (divisor >> 0) as u8);
-    write_byte(0x40, (divisor >> 8) as u8);
+    unsafe {
+        port_40.write((divisor & 0xff) as u8);
+        port_40.write((divisor >> 8) as u8);
+    }
 }
 
-pub mod pic_1 {
-    use x86_64::instructions::port::Port;
-
-    pub static mut COMM: Port<u8> = Port::new(0x20);
-    pub static mut DATA: Port<u8> = Port::new(0x21);
-    pub const OFFSET: u8 = 0x20;
-    pub const CASCADE: u8 = 0x04;
+pub struct Pic {
+    comm: Port<u8>,
+    data: Port<u8>,
+    offset: u8,
 }
 
-pub mod pic_2 {
-    use x86_64::instructions::port::Port;
+impl Pic {
+    pub const fn new(comm: u16, data: u16, offset: u8) -> Self {
+        Self {
+            comm: Port::new(comm),
+            data: Port::new(data),
+            offset,
+        }
+    }
+}
 
-    pub static mut COMM: Port<u8> = Port::new(0xA0);
-    pub static mut DATA: Port<u8> = Port::new(0xA1);
-    pub const OFFSET: u8 = 0x28;
-    pub const CASCADE: u8 = 0x02;
+pub struct PicPair {
+    pic_1: Pic,
+    pic_2: Pic,
 }
 
 const INIT_CMD: u8 = 0x11;
 const INTERRUPT_END_CMD: u8 = 0x20;
 const MODE_8086: u8 = 0x01;
 
-fn init_pic() {
-    // TODO: do more research and document this
+impl PicPair {
+    pub const fn new(pic_1: Pic, pic_2: Pic) -> Self {
+        Self { pic_1, pic_2 }
+    }
 
-    // Write garbage data to ports to add some delay for the PICs to initialize.
-    // This is sometimes necessary because the PICs are slow to initialize on older hardware.
-    // TODO: is this really necessary?
-    //
-    // source: [pic8295](https://docs.rs/pic8259/latest)
-    let mut wait_port: Port<u8> = Port::new(0x80);
+    pub fn init(&mut self) {
+        // TODO: do more research and document this
 
-    // TODO: do I need to do this?
-    let mask1 = unsafe { pic_1::DATA.read() };
-    let mask2 = unsafe { pic_2::DATA.read() };
+        // Write garbage data to ports to add some delay for the PICs to initialize.
+        // This is sometimes necessary because the PICs are slow to initialize on older hardware.
+        // TODO: is this really necessary?
+        //
+        // source: [pic8295](https://docs.rs/pic8259/latest)
+        let mut wait_port: Port<u8> = Port::new(0x80);
 
-    unsafe {
-        // Send initialization commands
-        pic_1::COMM.write(INIT_CMD);
-        wait_port.write(0);
-        pic_2::COMM.write(INIT_CMD);
-        wait_port.write(0);
+        // TODO: do I need to do this?
+        let mask1 = unsafe { self.pic_1.data.read() };
+        let mask2 = unsafe { self.pic_2.data.read() };
 
-        // Setup offsets
-        pic_1::DATA.write(pic_1::OFFSET);
-        wait_port.write(0);
-        pic_2::DATA.write(pic_2::OFFSET);
-        wait_port.write(0);
+        unsafe {
+            // Send initialization commands
+            self.pic_1.comm.write(INIT_CMD);
+            wait_port.write(0);
+            self.pic_2.comm.write(INIT_CMD);
+            wait_port.write(0);
 
-        // Setup chaining between PIC1 and PIC2
-        pic_1::DATA.write(pic_1::CASCADE);
-        wait_port.write(0);
-        pic_2::DATA.write(pic_2::CASCADE);
-        wait_port.write(0);
+            // Setup offsets
+            self.pic_1.data.write(self.pic_1.offset);
+            wait_port.write(0);
+            self.pic_2.data.write(self.pic_2.offset);
+            wait_port.write(0);
 
-        // Set PICs to 8086/88 mode
-        pic_1::DATA.write(MODE_8086);
-        wait_port.write(0);
-        pic_2::DATA.write(MODE_8086);
-        wait_port.write(0);
+            // Setup chaining between PIC1 and PIC2
+            self.pic_1.data.write(0x04);
+            wait_port.write(0);
+            self.pic_2.data.write(0x02);
+            wait_port.write(0);
 
-        // Restore saved masks
-        pic_1::DATA.write(mask1);
-        pic_2::DATA.write(mask2);
+            // Set PICs to 8086/88 mode
+            self.pic_1.data.write(MODE_8086);
+            wait_port.write(0);
+            self.pic_2.data.write(MODE_8086);
+            wait_port.write(0);
+
+            // Restore saved masks
+            self.pic_1.data.write(mask1);
+            self.pic_2.data.write(mask2);
+        }
+    }
+
+    pub fn end_interrupt(&mut self, id: u8) {
+        let one = self.pic_1.offset <= id && id < self.pic_1.offset + 8;
+        let two = self.pic_2.offset <= id && id < self.pic_2.offset + 8;
+        if one || two {
+            if two {
+                unsafe {
+                    self.pic_2.comm.write(INTERRUPT_END_CMD);
+                }
+            }
+            unsafe {
+                self.pic_1.comm.write(INTERRUPT_END_CMD);
+            }
+        }
     }
 }
 
+pub const PIC_1_OFFSET: u8 = 0x20;
+pub const PIC_2_OFFSET: u8 = 0x28;
+
+static mut PICS: RwLock<PicPair> = RwLock::new(PicPair::new(
+    Pic::new(0x20, 0x21, PIC_1_OFFSET),
+    Pic::new(0xa0, 0xa1, PIC_2_OFFSET),
+));
+
 pub fn init() {
     init_pit();
-    init_pic();
+    unsafe {
+        PICS.write().init();
+    }
 }
 
 pub fn end_interrupt(id: u8) {
-    let one = pic_1::OFFSET <= id && id < pic_1::OFFSET + 8;
-    let two = pic_2::OFFSET <= id && id < pic_2::OFFSET + 8;
-    if one || two {
-        if two {
-            unsafe {
-                pic_2::COMM.write(INTERRUPT_END_CMD);
-            }
-        }
-        unsafe {
-            pic_1::COMM.write(INTERRUPT_END_CMD);
-        }
+    unsafe {
+        PICS.write().end_interrupt(id);
     }
 }

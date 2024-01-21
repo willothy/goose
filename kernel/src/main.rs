@@ -31,7 +31,9 @@ pub(crate) unsafe fn panic(info: &PanicInfo) -> ! {
         println!("unknown");
     }
 
-    loop {}
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,5 +80,7 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     #[cfg(test)]
     test_main();
 
-    loop {}
+    loop {
+        x86_64::instructions::hlt();
+    }
 }

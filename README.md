@@ -61,4 +61,8 @@ TODO:
 
 - Setup long mode 4-level paging
 - Memory allocator so I can use the `alloc` crate and the heap
+- USB driver
+- Serial driver
+- Basic filesystem (FAT32?)
+- Test harness
 - etc...
