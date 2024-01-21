@@ -69,12 +69,6 @@ impl Pic {
     pub fn offset(&self) -> u8 {
         self.offset
     }
-
-    #[inline(always)]
-    #[allow(dead_code)]
-    pub fn read_cmd(&mut self) -> u8 {
-        unsafe { self.comm.read() }
-    }
 }
 
 pub struct PicPair {
@@ -158,6 +152,15 @@ static mut PICS: Mutex<PicPair> = Mutex::new(PicPair::new(
 
 pub fn acquire_pics<'a>() -> spin::MutexGuard<'a, PicPair> {
     unsafe { PICS.lock() }
+}
+
+pub fn read_isr() -> u8 {
+    let mut pics = acquire_pics();
+    let pic = &mut pics.pic_1;
+    unsafe {
+        pic.command(0x0b);
+        pic.comm.read()
+    }
 }
 
 pub fn init() {

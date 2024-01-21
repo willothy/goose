@@ -10,6 +10,7 @@ use core::{arch::asm, panic::PanicInfo};
 use x86_64::instructions::interrupts;
 
 mod boot_info;
+mod debug;
 mod gdt;
 mod idt;
 mod pic;
@@ -93,15 +94,29 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     interrupts::enable();
     println!("Interrupts enabled");
 
-    // // Jump to user mode. Not ready to do this yet.
+    // let selectors = gdt::selectors();
+    // let mut tss = selectors.tss.0;
+    // let mut cs = selectors.ring3_code.0;
+
+    // println!("TSS: {:x}", tss);
+    // println!("CS: {:x}", cs);
+    // tss |= 0b11;
+    // cs |= 0b11;
+
+    // Jump to user mode. Not ready to do this yet.
     // unsafe {
     //     asm! {
+    //         // "push {:x}",
     //         "push 0x18|3",
     //         "push rsp",
+    //         // "push 0x7c00",
     //         "push 0x202",
+    //         // "push {:x}",
     //         "push 0x10|3",
     //         "push {user_mode_entry}",
     //         "iretq",
+    //         // in(reg) tss,
+    //         // in(reg) cs,
     //         user_mode_entry = in(reg) user_mode_entry,
     //     };
     // }

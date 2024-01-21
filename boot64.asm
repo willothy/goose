@@ -16,6 +16,7 @@ long_mode_entry:
 
     ; mov edi, ebx
     mov edi, [stack_top - 4]
+    ; mov rsp, 0x200000
     call kernel_main
     hlt
 

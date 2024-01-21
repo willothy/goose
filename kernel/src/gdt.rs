@@ -75,7 +75,7 @@
 //!   Attributes of code segment entry:
 //!   D L    P DPL 1 1 C
 //!   0 1    1 00      0
-use core::ptr::{addr_of, addr_of_mut};
+use core::ptr::addr_of;
 
 use spin::lazy::Lazy;
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
@@ -90,7 +90,7 @@ static mut TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
         const STACK_SIZE: usize = 4096 * 5;
         static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
 
-        let stack_start = VirtAddr::from_ptr(unsafe { addr_of_mut!(STACK) });
+        let stack_start = VirtAddr::from_ptr(unsafe { addr_of!(STACK) });
         let stack_end = stack_start + STACK_SIZE;
         stack_end
     };
@@ -101,11 +101,11 @@ static mut TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 #[repr(C)]
-struct Selectors {
-    ring0_code: SegmentSelector,
-    ring3_code: SegmentSelector,
-    ring3_data: SegmentSelector,
-    tss: SegmentSelector,
+pub struct Selectors {
+    pub ring0_code: SegmentSelector,
+    pub ring3_code: SegmentSelector,
+    pub ring3_data: SegmentSelector,
+    pub tss: SegmentSelector,
 }
 
 #[allow(dead_code)]
@@ -161,4 +161,8 @@ pub fn init() {
         CS::set_reg(GDT.selectors.ring0_code);
         load_tss(GDT.selectors.tss);
     }
+}
+
+pub fn selectors<'a>() -> &'a Selectors {
+    unsafe { &GDT.selectors }
 }
