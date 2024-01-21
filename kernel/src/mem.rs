@@ -1,3 +1,54 @@
+use core::{mem::MaybeUninit, ptr::addr_of_mut};
+
+use multiboot2::{MemoryArea, MemoryAreaType};
+
+use crate::println;
+
+static mut FREE_REGIONS: [MaybeUninit<MemoryArea>; 128] = [MaybeUninit::zeroed(); 128];
+static mut FREE_REGIONS_COUNT: usize = 0;
+
+pub fn find_available_regions() {
+    let boot_info = crate::boot_info::get();
+    let Some(memory_map) = boot_info.memory_map_tag() else {
+        panic!("The bootloader did not provide a memory map or one could not be found.");
+    };
+    let regions = memory_map.memory_areas();
+
+    let free_regions = &mut unsafe { *addr_of_mut!(FREE_REGIONS) };
+    let free_regions_count = &mut unsafe { *addr_of_mut!(FREE_REGIONS_COUNT) };
+
+    for region in regions {
+        match region.typ().into() {
+            MemoryAreaType::Available => {
+                free_regions[*free_regions_count] = MaybeUninit::new(region.clone());
+                *free_regions_count += 1;
+                println!(
+                    "Available region: {:#x} - {:#x}",
+                    region.start_address(),
+                    region.end_address()
+                );
+            }
+            MemoryAreaType::Reserved => {
+                println!(
+                    "Reserved region: {:#x} - {:#x}",
+                    region.start_address(),
+                    region.end_address()
+                );
+            }
+            MemoryAreaType::AcpiAvailable => {}
+            MemoryAreaType::ReservedHibernate => {}
+            MemoryAreaType::Defective => {
+                println!(
+                    "Defective region: {:#x} - {:#x}",
+                    region.start_address(),
+                    region.end_address()
+                );
+            }
+            MemoryAreaType::Custom(_) => {}
+        }
+    }
+}
+
 extern "C" {
     pub fn k_memset(ptr: *mut u8, value: u8, count: usize);
 

@@ -79,7 +79,11 @@ pub extern "C" fn user_mode_entry() -> ! {
 
 #[no_mangle]
 pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
+    // Initialize the boot info so that we can use it as needed with a 'static lifetime.
     boot_info::init(mboot_ptr).expect("Failed to initialize boot info");
+
+    // Parse the memory map that the bootloader (hopefully) provided.
+    mem::find_available_regions();
 
     println!("Hello from 64-bit Rust! Successfully entered long mode.");
 
@@ -89,9 +93,12 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     // Set up the IDT entries.
     idt::init();
 
+    // Setup interrupt timer, 10ms preempt by default.
     pit::init();
+    // Setup the PIC.
     pic::init();
 
+    // This will be done later once we enter user mode.
     interrupts::enable();
     println!("Interrupts enabled");
 
@@ -101,8 +108,6 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
 
     // println!("TSS: {:x}", tss);
     // println!("CS: {:x}", cs);
-    // tss |= 0b11;
-    // cs |= 0b11;
 
     // Jump to user mode. Not ready to do this yet.
     // unsafe {
