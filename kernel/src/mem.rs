@@ -6,6 +6,7 @@ use crate::println;
 
 static mut FREE_REGIONS: [MaybeUninit<MemoryArea>; 128] = [MaybeUninit::zeroed(); 128];
 static mut FREE_REGIONS_COUNT: usize = 0;
+static mut FREE_BYTES: usize = 0;
 
 pub fn find_available_regions() {
     let boot_info = crate::boot_info::get();
@@ -16,16 +17,19 @@ pub fn find_available_regions() {
 
     let free_regions = &mut unsafe { *addr_of_mut!(FREE_REGIONS) };
     let free_regions_count = &mut unsafe { *addr_of_mut!(FREE_REGIONS_COUNT) };
+    let free_bytes = &mut unsafe { *addr_of_mut!(FREE_BYTES) };
 
     for region in regions {
         match region.typ().into() {
             MemoryAreaType::Available => {
                 free_regions[*free_regions_count] = MaybeUninit::new(region.clone());
                 *free_regions_count += 1;
+                *free_bytes += region.size() as usize;
+
                 println!(
                     "Available region: {:#x} - {:#x}",
                     region.start_address(),
-                    region.end_address()
+                    region.end_address(),
                 );
             }
             MemoryAreaType::Reserved => {
@@ -47,6 +51,15 @@ pub fn find_available_regions() {
             MemoryAreaType::Custom(_) => {}
         }
     }
+
+    println!("Found {} free regions.", *free_regions_count);
+    let kb = *free_bytes / 1024;
+    let mb = kb / 1024;
+    let gb = mb / 1024;
+    println!(
+        "Found {} B / {} KB / {} MB / {} GB free.",
+        *free_bytes, kb, mb, gb
+    );
 }
 
 extern "C" {

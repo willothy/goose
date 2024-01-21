@@ -131,4 +131,6 @@ fn main() {
     let boot_dir = build_boot_dir(&root, &iso_dir);
     build_kernel_elf(&root, &boot_dir, objects);
     build_kernel_iso(&final_iso, &iso_dir);
+
+    println!("cargo:rerun-if-changed={}", final_iso.display());
 }

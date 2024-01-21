@@ -116,7 +116,7 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     //         "push 0x18|3",
     //         "push rsp",
     //         // "push 0x7c00",
-    //         "push 0x202",
+    //         "push 0x2",
     //         // "push {:x}",
     //         "push 0x10|3",
     //         "push {user_mode_entry}",
