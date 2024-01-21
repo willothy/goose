@@ -1,3 +1,3 @@
 fn main() {
-    println!("cargo:rerun-if-changed=src/init.asm");
+    println!("cargo:rerun-if-changed=src/mem.asm");
 }

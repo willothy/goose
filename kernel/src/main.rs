@@ -13,6 +13,7 @@ mod boot_info;
 mod debug;
 mod gdt;
 mod idt;
+mod mem;
 mod pic;
 mod pit;
 mod vga;
