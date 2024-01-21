@@ -5,15 +5,16 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
-use core::panic::PanicInfo;
+use core::{arch::asm, panic::PanicInfo};
+
+use x86_64::instructions::interrupts;
 
 mod boot_info;
 mod gdt;
 mod idt;
 mod pic;
+mod pit;
 mod vga;
-
-use x86_64::instructions::interrupts;
 
 #[panic_handler]
 pub(crate) unsafe fn panic(info: &PanicInfo) -> ! {
@@ -59,6 +60,21 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
     exit_qemu(QemuExitCode::Success);
 }
 
+pub extern "C" fn user_mode_entry() -> ! {
+    let cs: u16;
+    unsafe {
+        asm! {
+            "mov ax, cs",
+            out("ax") cs,
+        };
+    }
+    if (cs & 0b11) != 0b11 {
+        panic!("Not in ring 3!");
+    }
+    println!("Hello from user mode!");
+    loop {}
+}
+
 #[no_mangle]
 pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     boot_info::init(mboot_ptr).expect("Failed to initialize boot info");
@@ -71,14 +87,27 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     // Set up the IDT entries.
     idt::init();
 
+    pit::init();
     pic::init();
 
     interrupts::enable();
-
     println!("Interrupts enabled");
 
-    #[cfg(test)]
-    test_main();
+    // // Jump to user mode. Not ready to do this yet.
+    // unsafe {
+    //     asm! {
+    //         "push 0x18|3",
+    //         "push rsp",
+    //         "push 0x202",
+    //         "push 0x10|3",
+    //         "push {user_mode_entry}",
+    //         "iretq",
+    //         user_mode_entry = in(reg) user_mode_entry,
+    //     };
+    // }
+
+    // #[cfg(test)]
+    // test_main();
 
     loop {
         x86_64::instructions::hlt();

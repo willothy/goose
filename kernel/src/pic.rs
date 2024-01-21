@@ -28,22 +28,8 @@
 //!   - 111 (7): Square wave generator, same as 011
 //! - Bits 0: Binaryh/BCD mode (0 = 16-bit binary, 1 = four-digit BCD)
 
-use spin::rwlock::RwLock;
+use spin::mutex::Mutex;
 use x86_64::instructions::port::Port;
-
-fn init_pit() {
-    let mut port_43: Port<u8> = Port::new(0x43);
-    let mut port_40: Port<u8> = Port::new(0x40);
-    let data = (1 << 2) | (3 << 4);
-    unsafe {
-        port_43.write(data);
-    }
-    let divisor = 1193182 / 100;
-    unsafe {
-        port_40.write((divisor & 0xff) as u8);
-        port_40.write((divisor >> 8) as u8);
-    }
-}
 
 pub struct Pic {
     comm: Port<u8>,
@@ -59,11 +45,41 @@ impl Pic {
             offset,
         }
     }
+
+    #[inline(always)]
+    pub fn command(&mut self, data: u8) {
+        unsafe {
+            self.comm.write(data);
+        }
+    }
+
+    #[inline(always)]
+    pub fn read(&mut self) -> u8 {
+        unsafe { self.data.read() }
+    }
+
+    #[inline(always)]
+    pub fn write(&mut self, data: u8) {
+        unsafe {
+            self.data.write(data);
+        }
+    }
+
+    #[inline(always)]
+    pub fn offset(&self) -> u8 {
+        self.offset
+    }
+
+    #[inline(always)]
+    #[allow(dead_code)]
+    pub fn read_cmd(&mut self) -> u8 {
+        unsafe { self.comm.read() }
+    }
 }
 
 pub struct PicPair {
-    pic_1: Pic,
-    pic_2: Pic,
+    pub pic_1: Pic,
+    pub pic_2: Pic,
 }
 
 const INIT_CMD: u8 = 0x11;
@@ -86,37 +102,37 @@ impl PicPair {
         let mut wait_port: Port<u8> = Port::new(0x80);
 
         // TODO: do I need to do this?
-        let mask1 = unsafe { self.pic_1.data.read() };
-        let mask2 = unsafe { self.pic_2.data.read() };
+        let mask1 = self.pic_1.read();
+        let mask2 = self.pic_2.read();
 
         unsafe {
             // Send initialization commands
-            self.pic_1.comm.write(INIT_CMD);
+            self.pic_1.command(INIT_CMD);
             wait_port.write(0);
-            self.pic_2.comm.write(INIT_CMD);
+            self.pic_2.command(INIT_CMD);
             wait_port.write(0);
 
             // Setup offsets
-            self.pic_1.data.write(self.pic_1.offset);
+            self.pic_1.write(self.pic_1.offset());
             wait_port.write(0);
-            self.pic_2.data.write(self.pic_2.offset);
+            self.pic_2.write(self.pic_2.offset());
             wait_port.write(0);
 
             // Setup chaining between PIC1 and PIC2
-            self.pic_1.data.write(0x04);
+            self.pic_1.write(0x04);
             wait_port.write(0);
-            self.pic_2.data.write(0x02);
+            self.pic_2.write(0x02);
             wait_port.write(0);
 
             // Set PICs to 8086/88 mode
-            self.pic_1.data.write(MODE_8086);
+            self.pic_1.write(MODE_8086);
             wait_port.write(0);
-            self.pic_2.data.write(MODE_8086);
+            self.pic_2.write(MODE_8086);
             wait_port.write(0);
 
             // Restore saved masks
-            self.pic_1.data.write(mask1);
-            self.pic_2.data.write(mask2);
+            self.pic_1.write(mask1);
+            self.pic_2.write(mask2);
         }
     }
 
@@ -125,13 +141,9 @@ impl PicPair {
         let two = self.pic_2.offset <= id && id < self.pic_2.offset + 8;
         if one || two {
             if two {
-                unsafe {
-                    self.pic_2.comm.write(INTERRUPT_END_CMD);
-                }
+                self.pic_2.command(INTERRUPT_END_CMD);
             }
-            unsafe {
-                self.pic_1.comm.write(INTERRUPT_END_CMD);
-            }
+            self.pic_1.command(INTERRUPT_END_CMD);
         }
     }
 }
@@ -139,20 +151,19 @@ impl PicPair {
 pub const PIC_1_OFFSET: u8 = 0x20;
 pub const PIC_2_OFFSET: u8 = 0x28;
 
-static mut PICS: RwLock<PicPair> = RwLock::new(PicPair::new(
+static mut PICS: Mutex<PicPair> = Mutex::new(PicPair::new(
     Pic::new(0x20, 0x21, PIC_1_OFFSET),
     Pic::new(0xa0, 0xa1, PIC_2_OFFSET),
 ));
 
+pub fn acquire_pics<'a>() -> spin::MutexGuard<'a, PicPair> {
+    unsafe { PICS.lock() }
+}
+
 pub fn init() {
-    init_pit();
-    unsafe {
-        PICS.write().init();
-    }
+    acquire_pics().init();
 }
 
 pub fn end_interrupt(id: u8) {
-    unsafe {
-        PICS.write().end_interrupt(id);
-    }
+    acquire_pics().end_interrupt(id);
 }

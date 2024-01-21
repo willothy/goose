@@ -94,13 +94,17 @@ static mut TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
         let stack_end = stack_start + STACK_SIZE;
         stack_end
     };
+    tss.privilege_stack_table[0] = VirtAddr::new(0x150000); // TODO: figure out what this number is
     tss
 });
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+#[repr(C)]
 struct Selectors {
-    code: SegmentSelector,
+    ring0_code: SegmentSelector,
+    ring3_code: SegmentSelector,
+    ring3_data: SegmentSelector,
     tss: SegmentSelector,
 }
 
@@ -112,10 +116,38 @@ struct Gdt {
 
 static mut GDT: Lazy<Gdt> = Lazy::new(|| {
     let mut gdt = GlobalDescriptorTable::new();
+    let ring0_code = gdt.add_entry(Descriptor::kernel_code_segment());
+    let ring3_code = gdt.add_entry(Descriptor::user_code_segment());
+    let ring3_data = gdt.add_entry(Descriptor::user_data_segment());
+    let tss = gdt.add_entry(Descriptor::tss_segment(unsafe { &*addr_of!(TSS) }));
     Gdt {
         selectors: Selectors {
-            code: gdt.add_entry(Descriptor::kernel_code_segment()),
-            tss: gdt.add_entry(Descriptor::tss_segment(unsafe { &*addr_of!(TSS) })),
+            // I am not sure if this aligns exactly with x86_64's GDT,
+            // but this is what the course says so that's what I am taking notes on.
+            //
+            // I will likely reimplement this entirely myself later.
+            //
+            // Ring0 code:
+            //
+            // D L  P  DPL  1 1 C
+            // 0 1  1  00   1 1 0
+            ring0_code,
+            // D L  P  DPL  1 1 C
+            // 0 1  1  11   1 1 0
+            //
+            // The main difference between ring0 and ring3 is the DPL.
+            ring3_code,
+            // P DPL 1 0 | 0 W 0
+            // 1 11  1 0 | 0 1 0
+            //       |---|   |
+            //       |       - writable
+            //       - data segment
+            ring3_data,
+            // P DPL   TYPE
+            // 1 00  0 1001
+            //
+            // TODO: read more about this
+            tss,
         },
         gdt,
     }
@@ -126,7 +158,7 @@ pub fn init() {
     use x86_64::instructions::tables::load_tss;
     unsafe {
         GDT.gdt.load();
-        CS::set_reg(GDT.selectors.code);
+        CS::set_reg(GDT.selectors.ring0_code);
         load_tss(GDT.selectors.tss);
     }
 }
