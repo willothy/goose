@@ -1,25 +1,26 @@
-[BITS 64]
+	[BITS 64]
 
-extern kernel_main
-extern stack_top
+	extern kernel_main
+	extern stack_top
 
-section .text
-global long_mode_entry
+	section .text
+	global  long_mode_entry
+
 long_mode_entry:
-    ; zero out segment registers
-    mov ax, 0
-    mov ss, ax
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
+	;   zero out segment registers
+	mov ax, 0
+	mov ss, ax
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
 
-    ; mov edi, ebx
-    mov edi, [stack_top - 4]
-    ; mov rsp, 0x200000
-    call kernel_main
-    hlt
+	;    mov edi, ebx
+	mov  edi, [stack_top - 4]
+	;    mov rsp, 0x200000
+	call kernel_main
+	hlt
 
 end:
-    hlt
-    jmp end
+	hlt
+	jmp end

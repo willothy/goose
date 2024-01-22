@@ -26,27 +26,27 @@ pub fn find_available_regions() {
                 *free_regions_count += 1;
                 *free_bytes += region.size() as usize;
 
-                println!(
-                    "Available region: {:#x} - {:#x}",
-                    region.start_address(),
-                    region.end_address(),
-                );
+                // println!(
+                //     "Available region: {:#x} - {:#x}",
+                //     region.start_address(),
+                //     region.end_address(),
+                // );
             }
             MemoryAreaType::Reserved => {
-                println!(
-                    "Reserved region: {:#x} - {:#x}",
-                    region.start_address(),
-                    region.end_address()
-                );
+                // println!(
+                //     "Reserved region: {:#x} - {:#x}",
+                //     region.start_address(),
+                //     region.end_address()
+                // );
             }
             MemoryAreaType::AcpiAvailable => {}
             MemoryAreaType::ReservedHibernate => {}
             MemoryAreaType::Defective => {
-                println!(
-                    "Defective region: {:#x} - {:#x}",
-                    region.start_address(),
-                    region.end_address()
-                );
+                // println!(
+                //     "Defective region: {:#x} - {:#x}",
+                //     region.start_address(),
+                //     region.end_address()
+                // );
             }
             MemoryAreaType::Custom(_) => {}
         }

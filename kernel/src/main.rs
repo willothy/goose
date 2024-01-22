@@ -102,6 +102,8 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     interrupts::enable();
     println!("Interrupts enabled");
 
+    boot_info::dump();
+
     // let selectors = gdt::selectors();
     // let mut tss = selectors.tss.0;
     // let mut cs = selectors.ring3_code.0;
