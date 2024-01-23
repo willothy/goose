@@ -1,4 +1,4 @@
-# bruh OS
+# TOSS: TinyOpenSourceOS
 
 Hobby OS project. Probably very bad. I have no idea what I'm doing.
 
@@ -15,6 +15,10 @@ and [StreamOS](https://github.com/sphaerophoria/stream-os).
 - Preemptive, multicore scheduler (main goal, I want to learn about this)
 - Userland processes
 - Basic network stack (maybe a web server if I am lucky)
+- TUI environment with builtin multiplexer
+  - Vim bindings EVERYWHERE. Maybe I won't even support mouse at all.
+  - If I am able to get GUI, then build the GUI around the terminal.
+    Like tmux but you can have splits be GUI windows OR builtin terminals.
 
 ## About
 
