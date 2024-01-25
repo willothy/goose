@@ -10,10 +10,7 @@ static mut FREE_BYTES: usize = 0;
 
 pub fn find_available_regions() {
     let boot_info = crate::boot_info::get();
-    let Some(memory_map) = boot_info.memory_map_tag() else {
-        panic!("The bootloader did not provide a memory map or one could not be found.");
-    };
-    let regions = memory_map.memory_areas();
+    let regions = boot_info.mem_map;
 
     let free_regions = &mut unsafe { *addr_of_mut!(FREE_REGIONS) };
     let free_regions_count = &mut unsafe { *addr_of_mut!(FREE_REGIONS_COUNT) };
