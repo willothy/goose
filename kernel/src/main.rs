@@ -102,7 +102,7 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     interrupts::enable();
     println!("Interrupts enabled");
 
-    boot_info::dump();
+    // boot_info::dump();
 
     // let selectors = gdt::selectors();
     // let mut tss = selectors.tss.0;
@@ -133,6 +133,31 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     // test_main();
 
     loop {
+        interrupts::without_interrupts(|| {
+            let Some(evt) = crate::vga::pop_event() else {
+                return;
+            };
+            println!("got event: {:?}", evt);
+            match evt {
+                crate::vga::UiEvent::ScrollUp => unsafe {
+                    // if !crate::vga::WRITER.is_locked() {
+                    //     crate::vga::WRITER.lock().scroll_up();
+                    // }
+                    // crate::vga::WRITER.lock().scroll_up();
+                },
+                crate::vga::UiEvent::ScrollDown => unsafe {
+                    // if !crate::vga::WRITER.is_locked() {
+                    //     crate::vga::WRITER.lock().scroll_down();
+                    // }
+                    // crate::vga::WRITER.lock().scroll_down();
+                },
+                crate::vga::UiEvent::WriteStr(str) => unsafe {
+                    // println!("write str: {}", str);
+                    // crate::vga::WRITER.lock().write_string(str);
+                },
+            }
+        });
+
         x86_64::instructions::hlt();
     }
 }

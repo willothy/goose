@@ -116,7 +116,24 @@ extern "x86-interrupt" fn keyboard(_stack_frame: InterruptStackFrame) {
         0x02..=0x0b => Some(b"1234567890"[scancode as usize - 0x02] as char),
         0x10..=0x19 => Some(b"qwertyuiop"[scancode as usize - 0x10] as char),
 
-        0x1e..=0x26 => Some(b"asdfghjkl"[scancode as usize - 0x1e] as char),
+        // 0x1e..=0x26 => Some(b"asdfghjkl"[scancode as usize - 0x1e] as char),
+        0x1e => Some('a'),
+        0x1f => Some('s'),
+        0x20 => Some('d'),
+        0x21 => Some('f'),
+        0x22 => Some('g'),
+        0x23 => Some('h'),
+        0x24 => {
+            crate::vga::push_event(crate::vga::UiEvent::ScrollDown);
+            Some('j')
+            // None
+        }
+        0x25 => {
+            crate::vga::push_event(crate::vga::UiEvent::ScrollUp);
+            Some('k')
+            // None
+        }
+        0x26 => Some('l'),
         0x2c..=0x32 => Some(b"zxcvbnm"[scancode as usize - 0x2c] as char),
         0x39 => Some(' '),
         0xF => Some(' '), // Tab

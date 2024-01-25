@@ -18,7 +18,7 @@ build: distclean
   cargo build
 
 run: build
-  qemu-system-x86_64 -cdrom bruh_os.iso
+  qemu-system-x86_64 -cdrom bruh_os.iso -enable-kvm -m 2G -device hmat=on
 
 dump-header:
   rust-objdump -f target/{{TARGET}}/debug/bruh_os

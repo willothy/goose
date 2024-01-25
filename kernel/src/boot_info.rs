@@ -15,8 +15,9 @@ pub struct BootInfo {
     pub total_size: usize,
     pub loader: &'static str,
     pub cmdline: &'static str,
-    pub mem_bounds: Range<u32>,
+    pub mem_bounds: Range<usize>,
     pub mem_map: &'static [multiboot2::MemoryArea],
+    pub rdsp_v1: &'static multiboot2::RsdpV1Tag,
 }
 
 pub fn init(mboot_ptr: usize) -> Result<(), ()> {
@@ -32,11 +33,16 @@ pub fn init(mboot_ptr: usize) -> Result<(), ()> {
 
         let basic_map = boot_info.basic_memory_info_tag().unwrap() as *const BasicMemoryInfoTag;
         let basic_map = unsafe { basic_map.as_ref().unwrap() };
-        let bounds = basic_map.memory_lower()..basic_map.memory_upper();
+        let mem_bounds = basic_map.memory_lower() as usize..basic_map.memory_upper() as usize;
 
         let start_addr = boot_info.start_address();
         let end_addr = boot_info.end_address();
         let total_size = boot_info.total_size();
+
+        // QEMU does not support this
+        // let rdsp_v2 = boot_info.rsdp_v2_tag().unwrap();
+
+        let rdsp_v1 = boot_info.rsdp_v1_tag().unwrap();
 
         let loader = unsafe {
             boot_info
@@ -66,7 +72,8 @@ pub fn init(mboot_ptr: usize) -> Result<(), ()> {
             loader,
             cmdline,
             mem_map,
-            mem_bounds: bounds,
+            mem_bounds,
+            rdsp_v1,
         }
     });
     Ok(())
@@ -103,6 +110,13 @@ pub fn dump() {
             area.size()
         );
     }
+
+    let rdsp_v1 = info.rdsp_v1;
+    println!("RSDP v1:");
+    println!("  Signature: {}", rdsp_v1.signature().unwrap());
+    println!("  OEM ID: {}", rdsp_v1.oem_id().unwrap());
+    println!("  Revision: {}", rdsp_v1.revision());
+    println!("  RSDT Address: 0x{:0X}", rdsp_v1.rsdt_address());
 
     // println!("Tags: {}", info.info.total_size());
     // info.info.total_size()
