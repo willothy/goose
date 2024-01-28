@@ -20,7 +20,7 @@ test = true
 
 [workspace]
 members = [
-        "kernel", "typedev",
+        "kernel", 
 ]
 
 [profile.dev]

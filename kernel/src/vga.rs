@@ -7,76 +7,26 @@ use core::{
 use spin::{lazy::Lazy, Mutex, Once, RwLock};
 use x86_64::instructions::interrupts::without_interrupts;
 
+use crate::event::{push_event, UiEvent};
+
 pub const VGA_WIDTH: usize = 80;
 pub const VGA_HEIGHT: usize = 25;
 
-const SCROLLBACK_LINE_COUNT: usize = VGA_HEIGHT * 10;
-pub static mut SCROLLBACK: [[ScreenChar; VGA_WIDTH]; SCROLLBACK_LINE_COUNT] = [[ScreenChar {
-    ascii_char: b' ',
-    color_code: ColorCode::new(Color::White, Color::Black),
-}; VGA_WIDTH];
-    SCROLLBACK_LINE_COUNT];
+pub static mut BUFFER: *mut Buffer = 0xb8000 as *mut Buffer;
+
 pub static mut WRITER: Lazy<Mutex<Writer>> = Lazy::new(|| Mutex::new(Writer::new()));
-pub static mut QUEUE_BUFFER: MaybeUninit<[UiEvent; 128]> = MaybeUninit::zeroed();
-pub static mut UI_EVT_QUEUE: Lazy<UiEventQueue> = Lazy::new(|| UiEventQueue {
-    events: unsafe { NonNull::new_unchecked(addr_of_mut!(QUEUE_BUFFER).cast()) },
-    head: AtomicUsize::new(0),
-    tail: AtomicUsize::new(0),
-});
 
-pub fn push_event(event: UiEvent) {
-    unsafe { UI_EVT_QUEUE.push(event) };
-}
+const SCROLLBACK_LINE_COUNT: usize = VGA_HEIGHT * 10;
+pub static mut SCROLLBACK_BUFFER: Lazy<[[ScreenChar; VGA_WIDTH]; SCROLLBACK_LINE_COUNT]> =
+    Lazy::new(|| {
+        [[ScreenChar {
+            ascii_char: b' ',
+            color_code: ColorCode::new(Color::White, Color::Black),
+        }; VGA_WIDTH]; SCROLLBACK_LINE_COUNT]
+    });
+pub static mut SCROLLBACK: Lazy<Scrollback> = Lazy::new(|| Scrollback::new());
 
-pub fn pop_event() -> Option<UiEvent> {
-    unsafe { UI_EVT_QUEUE.pop() }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum UiEvent {
-    ScrollDown,
-    ScrollUp,
-    WriteStr(&'static str),
-}
-
-const UI_QUEUE_SIZE: usize = 128;
-
-pub struct UiEventQueue {
-    pub events: NonNull<[UiEvent; UI_QUEUE_SIZE]>,
-    pub head: AtomicUsize,
-    pub tail: AtomicUsize,
-}
-
-impl UiEventQueue {
-    pub fn push(&self, event: UiEvent) {
-        without_interrupts(|| {
-            let mut events = self.events;
-            let head = self.head.load(Ordering::SeqCst);
-            let tail = self.tail.load(Ordering::SeqCst);
-            if (tail + 1) % UI_QUEUE_SIZE == head {
-                return;
-            }
-            unsafe { events.as_mut()[tail] = event };
-            self.tail
-                .store((tail + 1) % UI_QUEUE_SIZE, Ordering::SeqCst);
-        });
-    }
-
-    pub fn pop(&self) -> Option<UiEvent> {
-        without_interrupts(|| {
-            let events = self.events;
-            let head = self.head.load(Ordering::SeqCst);
-            let tail = self.tail.load(Ordering::SeqCst);
-            if head == tail {
-                return None;
-            }
-            let event = unsafe { events.as_ref()[head].clone() };
-            self.head
-                .store((head + 1) % UI_QUEUE_SIZE, Ordering::SeqCst);
-            Some(event)
-        })
-    }
-}
+pub static SCROLL_TOPLINE: AtomicUsize = AtomicUsize::new(0);
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -197,15 +147,78 @@ impl Buffer {
     }
 }
 
+pub struct Scrollback {
+    buffer: *mut [[ScreenChar; VGA_WIDTH]; SCROLLBACK_LINE_COUNT],
+    head: AtomicUsize,
+    tail: AtomicUsize,
+}
+
+impl Scrollback {
+    pub fn new() -> Self {
+        Self {
+            buffer: unsafe { SCROLLBACK_BUFFER.as_mut_ptr() },
+            head: AtomicUsize::new(0),
+            tail: AtomicUsize::new(0),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        let head = self.head.load(Ordering::SeqCst);
+        let tail = self.tail.load(Ordering::SeqCst);
+        if head >= tail {
+            head - tail
+        } else {
+            head + SCROLLBACK_LINE_COUNT - tail
+        }
+    }
+
+    pub fn get_line(&self, line: usize) -> &[ScreenChar; VGA_WIDTH] {
+        let line = (self.tail.load(Ordering::SeqCst) + line) % SCROLLBACK_LINE_COUNT;
+        unsafe { &(*self.buffer)[line] }
+    }
+
+    pub fn get_line_mut(&self, line: usize) -> &mut [ScreenChar; VGA_WIDTH] {
+        let line = (self.tail.load(Ordering::SeqCst) + line) % SCROLLBACK_LINE_COUNT;
+        unsafe { &mut (*self.buffer)[line] }
+    }
+
+    pub fn current_line_mut(&self) -> &mut [ScreenChar; VGA_WIDTH] {
+        unsafe { &mut (*self.buffer)[self.head.load(Ordering::SeqCst)] }
+    }
+
+    pub fn next_line(&self) {
+        // If the scrollback buffer is full, pop the oldest line
+        let head = self.head.load(Ordering::SeqCst);
+
+        self.head
+            .store((head + 1) % SCROLLBACK_LINE_COUNT, Ordering::SeqCst);
+
+        let tail = self.tail.load(Ordering::SeqCst);
+        if head == tail {
+            // self.overflow_offset += 1;
+            self.tail
+                .store((tail + 1) % SCROLLBACK_LINE_COUNT, Ordering::SeqCst);
+        }
+
+        // assert!(self.tail != self.head);
+
+        // Auto-scroll if we're at the end of the buffer
+        // if self.len() - SCROLL_TOPLINE.load(Ordering::SeqCst) < VGA_HEIGHT {
+        //     SCROLL_TOPLINE.fetch_add(1, Ordering::SeqCst);
+        // }
+    }
+
+    pub fn push(&mut self, line: [ScreenChar; VGA_WIDTH]) {
+        let row = &mut unsafe { (*self.buffer)[self.head.load(Ordering::SeqCst)] };
+
+        *row = line;
+        self.next_line();
+    }
+}
+
 pub struct Writer {
     column_pos: usize,
     color_code: ColorCode,
-    buffer: &'static mut Buffer,
-    scrollback: &'static mut [[ScreenChar; VGA_WIDTH]; SCROLLBACK_LINE_COUNT],
-    scrollback_head: usize,
-    scrollback_tail: usize,
-    overflow_offset: usize,
-    scroll_topline: usize,
 }
 
 impl Writer {
@@ -214,85 +227,47 @@ impl Writer {
         Self {
             column_pos: 0,
             color_code,
-            buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-            scrollback: unsafe { &mut *addr_of_mut!(SCROLLBACK) },
-            scrollback_head: 0,
-            scrollback_tail: 0,
-            overflow_offset: 0,
-            scroll_topline: 0,
         }
-    }
-
-    pub fn scrollback_len(&self) -> usize {
-        if self.scrollback_head >= self.scrollback_tail {
-            self.scrollback_head - self.scrollback_tail
-        } else {
-            self.scrollback_head + self.scrollback.len() - self.scrollback_tail
-        }
-    }
-
-    pub fn scrollback_get_line(&self, line: usize) -> &[ScreenChar; VGA_WIDTH] {
-        let line = (self.scrollback_tail + line) % self.scrollback.len();
-        &self.scrollback[line]
-    }
-
-    pub fn scrollback_get_line_mut(&mut self, line: usize) -> &mut [ScreenChar; VGA_WIDTH] {
-        let line = (self.scrollback_tail + line) % self.scrollback.len();
-        &mut self.scrollback[line]
-    }
-
-    pub fn scrollback_current_line_mut(&mut self) -> &mut [ScreenChar; VGA_WIDTH] {
-        &mut self.scrollback[self.scrollback_head]
-    }
-
-    pub fn scrollback_next_line(&mut self) {
-        // If the scrollback buffer is full, pop the oldest line
-        self.scrollback_head = (self.scrollback_head + 1) % SCROLLBACK_LINE_COUNT;
-
-        if self.scrollback_head == self.scrollback_tail {
-            self.overflow_offset += 1;
-            self.scrollback_tail = (self.scrollback_tail + 1) % SCROLLBACK_LINE_COUNT;
-        }
-
-        // assert!(self.scrollback_tail != self.scrollback_head);
-
-        // Auto-scroll if we're at the end of the buffer
-        // if self.scrollback_len() - self.scroll_topline < VGA_HEIGHT {
-        //     self.scroll_topline += 1;
-        // }
-    }
-
-    pub fn scrollback_push(&mut self, line: [ScreenChar; VGA_WIDTH]) {
-        let row = &mut self.scrollback[self.scrollback_head];
-
-        *row = line;
-        self.scrollback_next_line();
     }
 
     pub fn scroll_up(&mut self) {
-        if self.scroll_topline > 0 {
-            self.scroll_topline -= 1;
-        }
+        SCROLL_TOPLINE
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |topline| {
+                if topline > 0 {
+                    Some(topline - 1)
+                } else {
+                    None
+                }
+            })
+            .ok();
         self.draw_frame();
     }
 
     pub fn scroll_down(&mut self) {
-        if self.scroll_topline < self.scrollback_len() - VGA_HEIGHT {
-            self.scroll_topline += 1;
-        }
+        SCROLL_TOPLINE
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |topline| {
+                if topline < unsafe { SCROLLBACK.len() } - VGA_HEIGHT {
+                    Some(topline + 1)
+                } else {
+                    None
+                }
+            })
+            .ok();
         self.draw_frame();
     }
 
     pub fn draw_frame(&mut self) {
-        let topline = self.scroll_topline;
-        let start_line = self.scrollback_tail + topline; // + self.overflow_offset;
+        let topline = SCROLL_TOPLINE.load(Ordering::SeqCst);
+        let start_line = unsafe { SCROLLBACK.tail.load(Ordering::SeqCst) } + topline; // + self.overflow_offset;
         let end_line = topline + VGA_HEIGHT - 1;
 
         for i in start_line..end_line {
-            // let i = i % SCROLLBACK_LINE_COUNT;
+            let i = i % SCROLLBACK_LINE_COUNT;
             let screenrow = i - start_line;
-            let line = self.scrollback[i];
-            self.buffer.chars[screenrow] = line;
+            let line = unsafe { (*SCROLLBACK.buffer)[i] };
+            unsafe {
+                (*BUFFER).chars[screenrow] = line;
+            }
             // assert_eq!(i, screenrow);
         }
     }
@@ -311,7 +286,7 @@ impl Writer {
                 }
                 let column_pos = self.column_pos;
                 let color_code = self.color_code;
-                let scrollback_row = self.scrollback_current_line_mut();
+                let scrollback_row = unsafe { SCROLLBACK.current_line_mut() };
                 scrollback_row[column_pos] = ScreenChar {
                     ascii_char: byte,
                     color_code,
@@ -337,7 +312,9 @@ impl Writer {
     }
 
     pub fn clear_row(&mut self, row: usize) {
-        self.buffer.clear_row(row, Some(self.color_code));
+        unsafe {
+            (*BUFFER).clear_row(row, Some(self.color_code));
+        }
     }
 
     pub fn newline(&mut self) {
@@ -348,7 +325,10 @@ impl Writer {
         //     }
         // }
         // self.clear_row(VGA_HEIGHT - 1);
-        self.scrollback_next_line();
+        // self.scrollback_next_line();
+        unsafe {
+            SCROLLBACK.next_line();
+        }
         self.column_pos = 0;
         self.draw_frame();
     }

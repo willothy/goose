@@ -8,7 +8,10 @@ use x86_64::{
     },
 };
 
-use crate::{gdt, pic, print, println};
+use crate::{
+    event::{self, UiEvent},
+    gdt, pic, print, println,
+};
 
 #[repr(u8)]
 #[allow(dead_code)]
@@ -124,12 +127,12 @@ extern "x86-interrupt" fn keyboard(_stack_frame: InterruptStackFrame) {
         0x22 => Some('g'),
         0x23 => Some('h'),
         0x24 => {
-            crate::vga::push_event(crate::vga::UiEvent::ScrollDown);
+            event::push_event(UiEvent::ScrollDown);
             Some('j')
             // None
         }
         0x25 => {
-            crate::vga::push_event(crate::vga::UiEvent::ScrollUp);
+            event::push_event(UiEvent::ScrollUp);
             Some('k')
             // None
         }

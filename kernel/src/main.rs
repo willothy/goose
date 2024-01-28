@@ -11,6 +11,7 @@ use x86_64::instructions::interrupts;
 
 mod boot_info;
 mod debug;
+mod event;
 mod gdt;
 mod idt;
 mod mem;
@@ -134,24 +135,24 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
 
     loop {
         interrupts::without_interrupts(|| {
-            let Some(evt) = crate::vga::pop_event() else {
+            let Some(evt) = crate::event::pop_event() else {
                 return;
             };
-            println!("got event: {:?}", evt);
+            // println!("got event: {:?}", evt);
             match evt {
-                crate::vga::UiEvent::ScrollUp => unsafe {
+                crate::event::UiEvent::ScrollUp => unsafe {
                     // if !crate::vga::WRITER.is_locked() {
                     //     crate::vga::WRITER.lock().scroll_up();
                     // }
                     // crate::vga::WRITER.lock().scroll_up();
                 },
-                crate::vga::UiEvent::ScrollDown => unsafe {
+                crate::event::UiEvent::ScrollDown => unsafe {
                     // if !crate::vga::WRITER.is_locked() {
                     //     crate::vga::WRITER.lock().scroll_down();
                     // }
                     // crate::vga::WRITER.lock().scroll_down();
                 },
-                crate::vga::UiEvent::WriteStr(str) => unsafe {
+                crate::event::UiEvent::WriteStr(str) => unsafe {
                     // println!("write str: {}", str);
                     // crate::vga::WRITER.lock().write_string(str);
                 },
