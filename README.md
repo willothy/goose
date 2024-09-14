@@ -1,4 +1,4 @@
-# Bruh OS (better name needed. obviously.)
+# Goose (Good ol' OS experiment)
 
 Hobby OS project. Probably very bad. I have no idea what I'm doing.
 
