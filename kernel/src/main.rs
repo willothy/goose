@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(panic_info_message)]
 #![feature(abi_x86_interrupt)]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
@@ -24,12 +23,8 @@ pub(crate) unsafe fn panic(info: &PanicInfo) -> ! {
     if let Some(location) = info.location() {
         println!("{} at {}:", location.file(), location.line());
     }
-    if let Some(message) = info.message().and_then(|m| m.as_str()) {
+    if let Some(message) = info.message().as_str() {
         println!("{}", message);
-    } else if let Some(message) = info.payload().downcast_ref::<&str>() {
-        println!("{}", message);
-    } else if let Some(message) = info.payload().downcast_ref::<&[u8]>() {
-        println!("{}", core::str::from_utf8(message).unwrap());
     } else {
         println!("unknown");
     }

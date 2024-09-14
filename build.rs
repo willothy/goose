@@ -88,6 +88,7 @@ fn build_kernel_elf(root: &Path, boot_dir: &Path, objects: Vec<PathBuf>) {
     let kernel_lib = env::var("CARGO_STATICLIB_FILE_KERNEL_kernel").expect("to find kernel bin");
     let kernel_bin = boot_dir.join("kernel.bin");
 
+    // let output = Command::new("ld.lld")
     let output = Command::new("ld")
         .arg("-n")
         .arg("-T")
