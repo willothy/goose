@@ -72,8 +72,19 @@ pub extern "C" fn user_mode_entry() -> ! {
     loop {}
 }
 
+const KERNEL_STACK_SIZE: usize = 8 * 1024;
+static mut KERNEL_STACK: [u8; KERNEL_STACK_SIZE] = [0; KERNEL_STACK_SIZE];
+
 #[no_mangle]
 pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
+    // Set up the stack for the kernel.
+    unsafe {
+        asm! {
+            "mov rsp, {stack}",
+            stack =  in(reg) core::ptr::addr_of_mut!(KERNEL_STACK),
+        };
+    }
+
     // Initialize the boot info so that we can use it as needed with a 'static lifetime.
     boot_info::init(mboot_ptr).expect("Failed to initialize boot info");
 
@@ -90,6 +101,7 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
 
     // Setup interrupt timer, 10ms preempt by default.
     pit::init();
+
     // Setup the PIC.
     pic::init();
 
@@ -97,12 +109,15 @@ pub extern "C" fn kernel_main(mboot_ptr: usize) -> ! {
     interrupts::enable();
     println!("Interrupts enabled");
 
-    boot_info::dump();
+    let info = boot_info::boot_info();
+
+    println!("Loaded by {}", info.loader);
+    println!("Command line: {:?}", info.cmdline);
 
     // let selectors = gdt::selectors();
     // let mut tss = selectors.tss.0;
     // let mut cs = selectors.ring3_code.0;
-
+    //
     // println!("TSS: {:x}", tss);
     // println!("CS: {:x}", cs);
 

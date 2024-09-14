@@ -9,7 +9,7 @@ static mut FREE_REGIONS_COUNT: usize = 0;
 static mut FREE_BYTES: usize = 0;
 
 pub fn find_available_regions() {
-    let boot_info = crate::boot_info::get();
+    let boot_info = crate::boot_info::boot_info();
     let regions = boot_info.mem_map;
 
     let free_regions = &mut unsafe { *addr_of_mut!(FREE_REGIONS) };
@@ -59,6 +59,7 @@ pub fn find_available_regions() {
     );
 }
 
+#[allow(unused)]
 extern "C" {
     pub fn k_memset(ptr: *mut u8, value: u8, count: usize);
 

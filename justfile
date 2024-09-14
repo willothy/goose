@@ -23,7 +23,7 @@ run: build
     qemu-system-x86_64 -cdrom bruh_os.iso
 
 run-macos:
-    ssh willothy@arch@orb 'cd /Users/willothy/projects/rust/bruh_os && cargo build' && qemu-system-x86_64 -cdrom bruh_os.iso
+    ssh -t willothy@arch@orb 'cd /Users/willothy/projects/rust/bruh_os && cargo build' && qemu-system-x86_64 -cdrom bruh_os.iso
 
 dump-header:
     rust-objdump -f target/{{ TARGET }}/debug/bruh_os
