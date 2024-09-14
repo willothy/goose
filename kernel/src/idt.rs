@@ -8,7 +8,7 @@ use x86_64::{
     },
 };
 
-use crate::{gdt, pic, print, println};
+use crate::{gdt, pic, println};
 
 #[repr(u8)]
 #[allow(dead_code)]
@@ -112,7 +112,7 @@ extern "x86-interrupt" fn keyboard(_stack_frame: InterruptStackFrame) {
 
     let scancode: u8 = unsafe { port.read() };
 
-    let key = match scancode {
+    let _key = match scancode {
         0x02..=0x0b => Some(b"1234567890"[scancode as usize - 0x02] as char),
         0x10..=0x19 => Some(b"qwertyuiop"[scancode as usize - 0x10] as char),
 
@@ -122,9 +122,9 @@ extern "x86-interrupt" fn keyboard(_stack_frame: InterruptStackFrame) {
         0xF => Some(' '), // Tab
         _ => None,
     };
-    if let Some(key) = key {
-        print!("{}", key);
-    }
+    // if let Some(key) = key {
+    //     print!("{}", key);
+    // }
     // else {
     //     println!("Unknown key: 0x{:0X}", scancode);
     // }
@@ -133,34 +133,50 @@ extern "x86-interrupt" fn keyboard(_stack_frame: InterruptStackFrame) {
 
 extern "x86-interrupt" fn divide_handler(_stack_frame: InterruptStackFrame) {
     println!("Divide by zero");
+
+    pic::end_interrupt(InterruptIndex::Divide as u8);
 }
 
 extern "x86-interrupt" fn debug_handler(_stack_frame: InterruptStackFrame) {
     println!("Debug");
+
+    pic::end_interrupt(InterruptIndex::Debug as u8);
 }
 
 extern "x86-interrupt" fn non_maskable_interrupt_handler(_stack_frame: InterruptStackFrame) {
     println!("Non-maskable interrupt");
+
+    pic::end_interrupt(InterruptIndex::NonMaskable as u8);
 }
 
 extern "x86-interrupt" fn overflow_handler(_stack_frame: InterruptStackFrame) {
     println!("Overflow");
+
+    pic::end_interrupt(InterruptIndex::Overflow as u8);
 }
 
 extern "x86-interrupt" fn bound_range_exceeded_handler(_stack_frame: InterruptStackFrame) {
     println!("Bound range exceeded");
+
+    pic::end_interrupt(InterruptIndex::BoundRangeExceeded as u8);
 }
 
 extern "x86-interrupt" fn invalid_opcode_handler(_stack_frame: InterruptStackFrame) {
     println!("Invalid opcode");
+
+    pic::end_interrupt(InterruptIndex::InvalidOpcode as u8);
 }
 
 extern "x86-interrupt" fn device_not_available_handler(_stack_frame: InterruptStackFrame) {
     println!("Device not available");
+
+    pic::end_interrupt(InterruptIndex::DeviceNotAvailable as u8);
 }
 
 extern "x86-interrupt" fn invalid_tss_handler(_stack_frame: InterruptStackFrame, _error: u64) {
     println!("Invalid TSS");
+
+    pic::end_interrupt(InterruptIndex::InvalidTss as u8);
 }
 
 extern "x86-interrupt" fn segment_not_present_handler(
@@ -168,6 +184,8 @@ extern "x86-interrupt" fn segment_not_present_handler(
     _error: u64,
 ) {
     // println!("Segment not present");
+
+    pic::end_interrupt(InterruptIndex::SegmentNotPresent as u8);
 }
 
 extern "x86-interrupt" fn stack_segment_fault_handler(
@@ -175,6 +193,8 @@ extern "x86-interrupt" fn stack_segment_fault_handler(
     _error: u64,
 ) {
     // println!("Stack segment fault");
+
+    pic::end_interrupt(InterruptIndex::StackSegmentFault as u8);
 }
 
 extern "x86-interrupt" fn general_protection_fault_handler(
@@ -183,6 +203,8 @@ extern "x86-interrupt" fn general_protection_fault_handler(
 ) {
     println!("General protection fault: {:?}", stack_frame);
     println!("Error code: {}", error);
+
+    pic::end_interrupt(InterruptIndex::GeneralProtectionFault as u8);
     // pic::end_interrupt(13);
     loop {
         //     // x86_64::instructions::hlt();
@@ -190,36 +212,48 @@ extern "x86-interrupt" fn general_protection_fault_handler(
 }
 
 extern "x86-interrupt" fn page_fault_handler(
-    stack_frame: InterruptStackFrame,
+    _stack_frame: InterruptStackFrame,
     _error: PageFaultErrorCode,
 ) {
     // println!("Page fault: {:?}", stack_frame);
     // loop {
     //     // x86_64::instructions::hlt();
     // }
+
+    pic::end_interrupt(InterruptIndex::PageFault as u8);
 }
 
 extern "x86-interrupt" fn x87_floating_point_handler(_stack_frame: InterruptStackFrame) {
     // println!("x87 floating point");
+
+    pic::end_interrupt(InterruptIndex::X87FloatingPoint as u8);
 }
 
 extern "x86-interrupt" fn alignment_check_handler(_stack_frame: InterruptStackFrame, _error: u64) {
     // println!("Alignment check");
+
+    pic::end_interrupt(InterruptIndex::AlignmentCheck as u8);
 }
 
 extern "x86-interrupt" fn machine_check_handler(_stack_frame: InterruptStackFrame) -> ! {
     // println!("Machine check");
     loop {
-        // x86_64::instructions::hlt();
+        x86_64::instructions::hlt();
     }
+
+    // pic::end_interrupt(InterruptIndex::MachineCheck as u8);
 }
 
 extern "x86-interrupt" fn simd_floating_point_handler(_stack_frame: InterruptStackFrame) {
     // println!("SIMD floating point");
+
+    pic::end_interrupt(InterruptIndex::SimdFloatingPoint as u8);
 }
 
 extern "x86-interrupt" fn virtualization_handler(_stack_frame: InterruptStackFrame) {
     // println!("Virtualization");
+
+    pic::end_interrupt(InterruptIndex::Virtualization as u8);
 }
 
 extern "x86-interrupt" fn security_exception_handler(
@@ -227,6 +261,8 @@ extern "x86-interrupt" fn security_exception_handler(
     _error: u64,
 ) {
     // println!("Security exception");
+
+    pic::end_interrupt(InterruptIndex::SecurityException as u8);
 }
 
 extern "x86-interrupt" fn spurious_interrupt_handler(_stack_frame: InterruptStackFrame) {
